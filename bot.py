@@ -124,7 +124,7 @@ def status (update, context):
             output_lines += 1
         elif difference < 0:
             context.bot.send_message(chat_id=chat_dict["@" + userB["username"]],
-                    text=userA["full_name"] + " (@" + userA["username"] + ") owes you " + str(-difference) + " units.",
+                    text=userB["full_name"] + " (@" + userB["username"] + ") owes you " + str(-difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
             output_lines += 1
@@ -143,7 +143,7 @@ def status (update, context):
                     output_lines += 1
                 elif difference < 0:
                     context.bot.send_message(chat_id=update.message.chat_id,
-                            text="You owe " + userB["full_name"] + " (@" + userB["username"] + ") " + str(-difference) + " units.",
+                            text="You owe " + userA["full_name"] + " (@" + userA["username"] + ") " + str(-difference) + " units.",
                             reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
                     output_lines += 1
 
