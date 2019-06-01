@@ -260,7 +260,7 @@ def received_share (update, context):
         if not ("@" + userA["username"]) in relative_finance_dict["@" + userB["username"]]:
             relative_finance_dict["@" + userB["username"]]["@" + userA["username"]] = value
         else:
-            old_value = Decimal(relative_finance_dict["@" + userA["username"]]["@" + userB["username"]])
+            old_value = Decimal(relative_finance_dict["@" + userB["username"]]["@" + userA["username"]])
             relative_finance_dict["@" + userB["username"]]["@" + userA["username"]] = old_value + value
         difference = -relative_finance_dict["@" + userB["username"]]["@" + userA["username"]]
 
