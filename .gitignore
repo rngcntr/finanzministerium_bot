@@ -1,5 +1,7 @@
 # User added files
+makefile
 secret_token
+storage/
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
