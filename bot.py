@@ -2,6 +2,7 @@ import simplejson
 import telegram
 import logging
 from expense import *
+from file_handler import *
 from telegram import MessageEntity, User
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters
 from decimal import Decimal
@@ -61,6 +62,7 @@ def main ():
     global chat_dict
     global relative_finance_dict
 
+    dbconfig_dict = load_dict("dbconfig.json");
     user_dict = load_dict("storage/user_dict.json")
     chat_dict = load_dict("storage/chat_dict.json")
     relative_finance_dict = load_dict("storage/relative_finance_dict.json")
@@ -75,23 +77,6 @@ def main ():
 def init_bot (secret_token):
     bot = telegram.Bot(token=secret_token)
     return bot
-
-def read_token (secret_token_filename):
-    secret_token_file = open(secret_token_filename, "r")
-    secret_token = secret_token_file.readline().strip()
-    secret_token_file.close()
-    return secret_token
-
-def write_dict (dict_obj, filename):
-    json_dict = simplejson.dumps(dict_obj)
-    f = open(filename, "w")
-    f.write(json_dict)
-    f.close()
-
-def load_dict (filename):
-    f = open(filename, "r")
-    json_dict = f.read()
-    return simplejson.loads(json_dict)
 
 def start (update, context):
     user_dict["@" + update.message.from_user.username] = {"id": update.message.from_user.id,
