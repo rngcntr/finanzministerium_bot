@@ -3,6 +3,7 @@ from decimal import Decimal
 from file_handler import *
 import mysql.connector
 from expense import *
+from user import *
 
 dbconfig_dict = load_dict("dbconfig.json");
 finanzministerium = {}
@@ -24,6 +25,16 @@ def add_user (tag, full_name, chat_id):
     cursor.execute("INSERT INTO users (tag, full_name, chat_id) VALUES (%s, %s, %s);",
             (tag, full_name, str(chat_id)))
     finanzministerium.commit()
+
+def get_user (tag):
+    cursor.execute("SELECT tag, full_name, chat_id FROM users WHERE tag=%s;", (tag,))
+    result = cursor.fetchall()
+    user = User()
+    if result:
+        user.tag = result[0][0]
+        user.full_name = result[0][1]
+        user.chat_id = result[0][2]
+    return user
 
 def get_user_name (tag):
     cursor.execute("SELECT full_name FROM users WHERE tag=%s;", (tag,))
