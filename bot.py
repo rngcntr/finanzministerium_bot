@@ -62,7 +62,6 @@ def main ():
     global chat_dict
     global relative_finance_dict
 
-    dbconfig_dict = load_dict("dbconfig.json");
     user_dict = load_dict("storage/user_dict.json")
     chat_dict = load_dict("storage/chat_dict.json")
     relative_finance_dict = load_dict("storage/relative_finance_dict.json")

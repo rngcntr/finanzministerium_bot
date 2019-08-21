@@ -1,3 +1,5 @@
+import simplejson
+
 def read_token (secret_token_filename):
     secret_token_file = open(secret_token_filename, "r")
     secret_token = secret_token_file.readline().strip()

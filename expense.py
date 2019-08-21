@@ -5,18 +5,18 @@ import re
 
 class Expense:
     # expense between two users
-    userA = None
-    userB = None
+    user_a = None
+    user_b = None
     reason = None
     value = None
 
-class CompleteExpense:
+class ComplexExpense:
     # expense between multiple users
     users = []
     reason = None
     value = None
 
-    def from_text (complete_expense_string):
+    def from_text (complex_expense_string):
         pattern = re.compile(r"""\s*
                                 (?P<value>\-?\d*\.?\d*) # value
                                 \s+
@@ -24,24 +24,25 @@ class CompleteExpense:
                                 \s+
                                 (?P<reason>[^\@.]*) # reason
                                 """, re.VERBOSE)
-        match = pattern.match(complete_expense_string)
+        match = pattern.match(complex_expense_string)
 
-        current_complete_expense = CompleteExpense()
-        current_complete_expense.value = Decimal(match.group("value"))
-        current_complete_expense.users = match.group("user").replace("\s*", " ").split(" ")
-        current_complete_expense.reason = match.group("reason")
+        current_complex_expense = ComplexExpense()
+        current_complex_expense.value = Decimal(match.group("value"))
+        current_complex_expense.users = match.group("user").replace("\s*", " ").split(" ")
+        current_complex_expense.users = [user.replace("@", "") for user in current_complex_expense.users]
+        current_complex_expense.reason = match.group("reason")
 
-        return current_complete_expense
+        return current_complex_expense
 
-    def to_expense_list (self, userA):
+    def to_expense_list (self, user_a):
         expenses = []
-        for userB in self.users:
+        for user_b in self.users:
             # don't add self-expenses
-            if userB != userA:
+            if user_b != user_a:
                 expense = Expense()
                 # set attributes
-                expense.userA = userA
-                expense.userB = userB
+                expense.user_a = user_a
+                expense.user_b = user_b
                 expense.reason = self.reason
                 expense.value = self.value / len(self.users)
                 expenses.append(expense)
@@ -54,7 +55,7 @@ class ExpenseEncoder(JSONEncoder):
         else:
             return o.__dict__
 
-class CompleteExpenseEncoder(JSONEncoder):
+class ComplexExpenseEncoder(JSONEncoder):
     def default(self, o):
         if (isinstance(o, Decimal)):
             return str(o)
@@ -64,16 +65,16 @@ class CompleteExpenseEncoder(JSONEncoder):
 class ExpenseDecoder(JSONDecoder):
     def from_json(json_object):
         input_expense = Expense();
-        if "userA" in json_object:
-            input_expense.userA = json_object["userA"]
-        if "userB" in json_object:
-            input_expense.userB = json_object["userB"]
+        if "user_a" in json_object:
+            input_expense.user_a = json_object["user_a"]
+        if "user_b" in json_object:
+            input_expense.user_b = json_object["user_b"]
         if "reason" in json_object:
             input_expense.reason = json_object["reason"]
         if "value" in json_object:
             input_expense.value = Decimal(json_object["value"])
 
-class CompleteExpenseDecoder(JSONDecoder):
+class ComplexExpenseDecoder(JSONDecoder):
     def from_json(json_object):
         input_expense = Expense();
         if "users" in json_object:
