@@ -62,13 +62,8 @@ def get_relative_finance (user_a, user_b):
             (user_a, user_b))
     result = cursor.fetchall();
 
-    print(user_a)
-    print(user_b)
-    print(switched)
     if len(result) > 0:
         if switched:
-            print(Decimal(result[0][0]))
-            print(Decimal(-1) * Decimal(result[0][0]))
             return Decimal(-1) * Decimal(result[0][0])
         else:
             return Decimal(result[0][0])

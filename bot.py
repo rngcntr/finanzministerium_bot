@@ -110,7 +110,6 @@ def status (update, context):
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
     for relative_finance in relative_finance_list:
-        print(json.dumps(relative_finance, cls=ExpenseEncoder))
         userB = get_user(relative_finance.userB)
         difference = relative_finance.value
 
