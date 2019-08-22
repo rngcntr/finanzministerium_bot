@@ -39,22 +39,6 @@ def get_user (tag):
     else:
         return None
 
-def get_user_name (tag):
-    cursor.execute("SELECT full_name FROM users WHERE tag=%s;", (tag,))
-    result = cursor.fetchall()
-    if result:
-        return result[0][0]
-    else:
-        return None
-
-def get_user_chat (tag):
-    cursor.execute("SELECT chat_id FROM users WHERE tag=%s;", (tag,))
-    result = cursor.fetchall();
-    if result:
-        return result[0][0]
-    else:
-        return None
-
 def get_status (user_a):
     cursor.execute("SELECT user_b, value FROM relative_finance WHERE user_a=%s AND NOT value=0 "
             "UNION SELECT user_a AS user_b, -value FROM relative_finance WHERE user_b=%s AND NOT value=0",
@@ -66,46 +50,56 @@ def get_relative_finance (user_a, user_b):
     if user_a == user_b:
         return Decimal(0)
 
-    switched = false
+    switched = False
     if (user_a > user_b):
         # switch users and invert value
         tmp = user_a
         user_a = user_b
         user_b = tmp
-        switched = true
+        switched = True
 
     cursor.execute("SELECT value FROM relative_finance WHERE user_a=%s AND user_b=%s;",
             (user_a, user_b))
     result = cursor.fetchall();
-    if result:
+
+    print(user_a)
+    print(user_b)
+    print(switched)
+    if len(result) > 0:
         if switched:
-            return -Decimal(result[0][0])
+            print(Decimal(result[0][0]))
+            print(Decimal(-1) * Decimal(result[0][0]))
+            return Decimal(-1) * Decimal(result[0][0])
         else:
             return Decimal(result[0][0])
     else:
         # insert new entry
         cursor.execute("INSERT INTO relative_finance (user_a, user_b, value) VALUES (%s, %s, %s)",
                 (user_a, user_b, str(Decimal(0))))
+        finanzministerium.commit()
         return Decimal(0)
 
 def add_expense (expense):
-    if expense.user_a == expense.user_b:
+    if expense.userA == expense.userB:
         return
 
     # user b owes user a value units
-    if (expense.user_a > expense.user_b):
+    if (expense.userA > expense.userB):
         # switch users and invert value
-        tmp = expense.user_a
-        expense.user_a = expense.user_b
-        expense.user_b = tmp
-        expense.value = -expense.value
+        old_value = get_relative_finance(expense.userB, expense.userA)
+        new_value = old_value + expense.value
 
-    old_value = get_relative_finance(expense.user_a, expense.user_b)
-    new_value = old_value - expense.value
+        cursor.execute("UPDATE relative_finance SET value=%s WHERE user_a=%s AND user_b=%s;",
+                (new_value, expense.userB, expense.userA))
+        finanzministerium.commit()
+    else:
+        # users are in correct order
+        old_value = get_relative_finance(expense.userA, expense.userB)
+        new_value = old_value - expense.value
 
-    cursor.execute("UPDATE relative_finance SET value=%s WHERE user_a=%s AND user_b=%s;",
-            (new_value, expense.user_a, expense.user_b))
-    finanzministerium.commit()
+        cursor.execute("UPDATE relative_finance SET value=%s WHERE user_a=%s AND user_b=%s;",
+                (new_value, expense.userA, expense.userB))
+        finanzministerium.commit()
 
 def add_complex_expense (complex_expense, user_a):
     for expense in complex_expense.to_expense_list(user_a):
