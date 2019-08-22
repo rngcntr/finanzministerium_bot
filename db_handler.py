@@ -1,4 +1,5 @@
 from jinja2 import Environment, FileSystemLoader
+from relative_finance import *
 from decimal import Decimal
 from file_handler import *
 import mysql.connector
@@ -29,12 +30,14 @@ def add_user (tag, full_name, chat_id):
 def get_user (tag):
     cursor.execute("SELECT tag, full_name, chat_id FROM users WHERE tag=%s;", (tag,))
     result = cursor.fetchall()
-    user = User()
     if result:
+        user = User()
         user.tag = result[0][0]
         user.full_name = result[0][1]
         user.chat_id = result[0][2]
-    return user
+        return user
+    else:
+        return None
 
 def get_user_name (tag):
     cursor.execute("SELECT full_name FROM users WHERE tag=%s;", (tag,))
@@ -52,21 +55,33 @@ def get_user_chat (tag):
     else:
         return None
 
+def get_status (user_a):
+    cursor.execute("SELECT user_b, value FROM relative_finance WHERE user_a=%s AND NOT value=0 "
+            "UNION SELECT user_a AS user_b, -value FROM relative_finance WHERE user_b=%s AND NOT value=0",
+            (user_a, user_a))
+    result = cursor.fetchall();
+    return [RelativeFinance(userB = entry[0], value=Decimal(entry[1]))  for entry in result]
+
 def get_relative_finance (user_a, user_b):
     if user_a == user_b:
         return Decimal(0)
 
+    switched = false
     if (user_a > user_b):
         # switch users and invert value
         tmp = user_a
         user_a = user_b
         user_b = tmp
+        switched = true
 
     cursor.execute("SELECT value FROM relative_finance WHERE user_a=%s AND user_b=%s;",
             (user_a, user_b))
     result = cursor.fetchall();
     if result:
-        return Decimal(result[0][0])
+        if switched:
+            return -Decimal(result[0][0])
+        else:
+            return Decimal(result[0][0])
     else:
         # insert new entry
         cursor.execute("INSERT INTO relative_finance (user_a, user_b, value) VALUES (%s, %s, %s)",
