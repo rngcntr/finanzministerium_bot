@@ -142,7 +142,7 @@ def expense (update, context):
     else:
         # quick interaction is used
         current_expense = Expense.from_text(update.message.text)
-        if not expense:
+        if not current_expense:
             context.bot.send_message(chat_id=update.message.from_user.id,
                     text="Please use the following format to enter expenses quickly:\n"
                     "/expense <value> <user_1> <user_2> ... <user_n> <reason>",
