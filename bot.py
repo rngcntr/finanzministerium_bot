@@ -9,7 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHa
 from decimal import Decimal
 from re import sub
 
-NAME, VALUE, REASON, SHARE = range(4)
+NAME, VALUE, REASON, SHARE, CONFIRM = range(5)
 
 current_expense_dict = {}
 current_settle_dict = {}
@@ -66,7 +66,7 @@ def main ():
 
     # Add handler for /settle command
     settle_handler = ConversationHandler(
-            entry_point=[CommandHandler('settle', settle)],
+            entry_points=[CommandHandler('settle', settle)],
             states={
                 NAME: [MessageHandler(Filters.text,
                     settle_received_name,
@@ -381,7 +381,7 @@ def settle_ask_for_confirmation (context, userA, userB):
     # B owes A 
     elif difference < 0:
         context.bot.send_message(chat_id=userA.chat_id,
-                text="To settle financial differences, " + userB.full_name + " has to pay you " + str(difference) + " units. Do you wish to mark this as done?",
+                text="To settle financial differences, " + userB.full_name + " has to pay you " + str(-difference) + " units. Do you wish to mark this as done?",
                 reply_markup=telegram.ReplyKeyboardMarkup(confirm_cancel_keyboard))
         return CONFIRM
     # A and B are balanced
@@ -404,8 +404,8 @@ def settle_received_confirmation (update, context):
                 text="You and " + userB.full_name + " are now balanced.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         context.bot.send_message(chat_id=userB.chat_id,
-                text=userA.full_name + " selected to settle all financial differences between both of you.\n"
-                "You and " + userA.full_name + " are now balanced.",
+                text=update.message.from_user.full_name + " selected to settle all financial differences between both of you.\n"
+                "You and " + update.message.from_user.full_name + " are now balanced.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
         return ConversationHandler.END
@@ -413,7 +413,7 @@ def settle_received_confirmation (update, context):
         context.bot.send_message(chat_id=update.message.from_user.id,
                 text="Cancelling",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        current_settle_dict[userA.tag] = None
+        current_settle_dict[update.message.from_user.username] = None
         return ConversationHandler.END
 
 #
