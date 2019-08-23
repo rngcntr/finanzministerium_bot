@@ -150,7 +150,7 @@ def expense (update, context):
             return ConversationHandler.END
         else:
             add_expense(current_expense, update.message.from_user.username)
-            show_expense_result(get_user(update.message.from_user.username), users.remove(update.message.from_user.username))
+            show_expense_result(get_user(update.message.from_user.username), current_expense.users.remove(update.message.from_user.username))
             return ConversationHandler.END
 
 #
