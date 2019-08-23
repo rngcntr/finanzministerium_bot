@@ -153,7 +153,7 @@ def received_name (update, context):
     else:
         entities = list(filter(lambda x: x.type == "mention", entities))
         entities = [update.message.parse_entity(entity).replace("@","") for entity in entities]
-        entities = list(filter(lambda x: x != update.message.from_user.username)) # don't share with yourself
+        entities = list(filter(lambda x: x != update.message.from_user.username, entities)) # don't share with yourself
         if len(entities) == 0:
             # message element is not a mention
             context.bot.send_message(chat_id=update.message.from_user.id,
