@@ -151,7 +151,7 @@ def expense (update, context):
         else:
             add_expense(current_expense, update.message.from_user.username)
             users = [get_user(user) for user in current_expense.users]
-            users.remove(update.message.from_user.username)
+            users = list(filter(lambda x: x.tag != update.message.from_user.username, users))
             show_expense_result(get_user(update.message.from_user.username), users)
             return ConversationHandler.END
 
