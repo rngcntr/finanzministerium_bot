@@ -206,7 +206,7 @@ def received_reason (update, context):
 
     reason_input = update.message.text
     current_expense.reason = reason_input
-    custom_keyboard = [[str(current_expense.value) + " for\neverybody", "Share equally\n(including yourself)"], ["Share equally\n(excluding yourself)", "Cancel"]]
+    custom_keyboard = [[str(current_expense.value) + " for everybody"], ["Share equally (including yourself)"], ["Share equally (excluding yourself)"], ["Cancel"]]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
     context.bot.send_message(chat_id=update.message.from_user.id,
             text="Adding an expense with value "
