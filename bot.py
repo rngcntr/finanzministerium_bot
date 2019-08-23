@@ -240,7 +240,7 @@ def received_share (update, context):
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         for userB in users:
             context.bot.send_message(chat_id=userB.chat_id,
-                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / (len(users) + 1)) + " units for the following reason:\n\n" + reason,
+                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / (len(users) + 1)) + " units for the following reason:\n\n" + current_expense.reason,
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         current_expense.users.append(update.message.from_user.username)
     elif share == "Share equally (excluding yourself)":
@@ -249,7 +249,7 @@ def received_share (update, context):
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         for userB in users:
             context.bot.send_message(chat_id=userB.chat_id,
-                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / len(users)) + " units for the following reason:\n\n" + reason,
+                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / len(users)) + " units for the following reason:\n\n" + current_expense.reason,
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
     else:
         context.bot.send_message(chat_id=update.message.from_user.id,
