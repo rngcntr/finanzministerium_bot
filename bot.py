@@ -150,7 +150,7 @@ def expense (update, context):
             return ConversationHandler.END
         else:
             add_expense(current_expense, update.message.from_user.username)
-            show_expense_result(get_user(update.message.from_user.username), current_expense.users.remove(update.message.from_user.username))
+            show_expense_result(get_user(update.message.from_user.username), current_expense.users)
             return ConversationHandler.END
 
 #
@@ -283,6 +283,9 @@ def received_share (update, context):
 #
 def show_expense_result (userA, users):
     for userB in users:
+        if userA.tag == userB.tag:
+            continue
+
         difference = get_relative_finance(userA.tag, userB.tag)
         # userA owes userB difference units
 
