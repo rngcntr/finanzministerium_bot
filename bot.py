@@ -131,7 +131,7 @@ def status (update, context):
 # start a new expense
 #
 def expense (update, context):
-    if update.message.text.trim() == "/expense":
+    if update.message.text.strip() == "/expense":
         # normal interaction is used
         current_expense_dict[update.message.from_user.username] = Expense()
 

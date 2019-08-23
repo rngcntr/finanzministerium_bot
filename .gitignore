@@ -4,6 +4,8 @@ secret_token
 storage/
 data/
 dbconfig.json
+errors.txt
+nohup.out
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
