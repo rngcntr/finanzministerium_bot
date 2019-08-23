@@ -89,6 +89,12 @@ def start (update, context):
                 "Once you created a tag, come back and press /start",
                 parse_mode=telegram.ParseMode.HTML,
                 reply_markup=telegram.ReplyKeyboardMarkup(start_keyboard))
+    elif get_user(update.message.from_user.username):
+        # the user does not have a user tag
+        context.bot.send_message(chat_id=update.message.chat_id,
+                text="You are already part of the chaos \o/",
+                parse_mode=telegram.ParseMode.HTML,
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
     else:
         add_user(update.message.from_user.username,
                 update.message.from_user.full_name,

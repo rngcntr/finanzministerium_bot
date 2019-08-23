@@ -34,7 +34,7 @@ def get_user (tag):
         user = User()
         user.tag = result[0][0].decode()
         user.full_name = result[0][1].decode()
-        user.chat_id = result[0][2].decode()
+        user.chat_id = result[0][2]
         return user
     else:
         return None
