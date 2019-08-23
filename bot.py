@@ -12,9 +12,11 @@ from re import sub
 NAME, VALUE, REASON, SHARE = range(4)
 
 current_expense_dict = {}
+current_settle_dict = {}
 
 start_keyboard = [["/start"]]
-command_keyboard = [["/expense", "/status"]]
+command_keyboard = [["/expense"], ["/status"], ["/settle"]]
+confirm_cancel_keyboard = [["Confirm"], ["Cancel"]]
 
 #
 # main function
@@ -41,20 +43,20 @@ def main ():
     expense_handler = ConversationHandler(
             entry_points=[CommandHandler('expense', expense)],
             states={
-                NAME: [MessageHandler(Filters.text & Filters.entity(MessageEntity.MENTION),
-                    received_name,
+                NAME: [MessageHandler(Filters.text,
+                    expense_received_name,
                     pass_user_data=True),
                     ],
                 VALUE: [MessageHandler(Filters.text,
-                    received_value,
+                    expense_received_value,
                     pass_user_data=True),
                     ],
                 REASON: [MessageHandler(Filters.text,
-                    received_reason,
+                    expense_received_reason,
                     pass_user_data=True),
                     ],
                 SHARE: [MessageHandler(Filters.text,
-                    received_share,
+                    expense_received_share,
                     pass_user_data=True),
                     ],
                 },
@@ -62,9 +64,22 @@ def main ():
             )
     dispatcher.add_handler(expense_handler)
 
-    # Add handler for plaintext
-    # failure_handler = MessageHandler(Filters.text, failure)
-    # dispatcher.add_handler(failure_handler)
+    # Add handler for /settle command
+    settle_handler = ConversationHandler(
+            entry_point=[CommandHandler('settle', settle)],
+            states={
+                NAME: [MessageHandler(Filters.text,
+                    settle_received_name,
+                    pass_user_data=True),
+                    ],
+                CONFIRM: [MessageHandler(Filters.text,
+                    settle_received_confirmation,
+                    pass_user_data=True),
+                    ],
+                },
+            fallbacks=[CommandHandler("cancel", cancel)]
+            )
+    dispatcher.add_handler(settle_handler)
 
     # Start the bot
     updater.start_polling()
@@ -158,7 +173,7 @@ def expense (update, context):
 #
 # received one (or multiple) users to share the expense with
 #
-def received_name (update, context):
+def expense_received_name (update, context):
     entities = update.message.entities
 
     if (len(entities) == 0):
@@ -203,7 +218,7 @@ def received_name (update, context):
 #
 # received the value of the current expense
 #
-def received_value (update, context):
+def expense_received_value (update, context):
     current_expense = current_expense_dict[update.message.from_user.username]
 
     value_input = update.message.text
@@ -218,7 +233,7 @@ def received_value (update, context):
 #
 # received a reason for the current expense
 #
-def received_reason (update, context):
+def expense_received_reason (update, context):
     current_expense = current_expense_dict[update.message.from_user.username]
 
     reason_input = update.message.text
@@ -236,7 +251,7 @@ def received_reason (update, context):
 #
 # received a share of the current expense for userB
 #
-def received_share (update, context):
+def expense_received_share (update, context):
     current_expense = current_expense_dict[update.message.from_user.username]
     users = [get_user(user) for user in current_expense.users]
 
@@ -313,11 +328,100 @@ def show_expense_result (context, userA, users):
                     text="You and " + userA.full_name + " are now balanced.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
+#
+# settle financial differences between users
+#
+def settle (update, context):
+    if update.message.text.strip() == "/settle":
+        # normal interaction is used
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Who do you want to settle financial differences with?",
+                reply_markup=telegram.ReplyKeyboardRemove())
+        return NAME
+    else:
+        # quick interaction is used
+        userB_string = update.message.text.strip().replace("/settle @", "")
+        userB = get_user(userB_string)
+        if not userB or userB.tag == update.message.from_user.username:
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text="Please use the following format and enter a registered user who is not you:\n"
+                    "/settle <user>",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+            return ConversationHandler.END
+        else:
+            return settle_ask_for_confirmation(context, get_user(update.message.from_user.username), userB)
+
+#
+# received a user account to settle financial differences with
+#
+def settle_received_name (update, context):
+    userB_string = update.message.text.strip().replace("@", "")
+    userB = get_user(userB_string)
+    if not userB or userB.tag == update.message.from_user.username:
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="You have to enter a registered user who is not you. Cancelling.",
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        return ConversationHandler.END
+    else:
+        return settle_ask_for_confirmation(context, get_user(update.message.from_user.username), userB)
+
+#
+# ask the initiating user for confirmation of the ongoing settlement
+#
+def settle_ask_for_confirmation (context, userA, userB):
+    difference = get_relative_finance(userA.tag, userB.tag)
+    current_settle_dict[userA.tag] = userB
+
+    # A owes B
+    if difference > 0:
+        context.bot.send_message(chat_id=userA.chat_id,
+                text="To settle financial differences, you have to pay " + userB.full_name + " " + str(difference) + " units. Do you wish to do this now?",
+                reply_markup=telegram.ReplyKeyboardMarkup(confirm_cancel_keyboard))
+        return CONFIRM
+    # B owes A 
+    elif difference < 0:
+        context.bot.send_message(chat_id=userA.chat_id,
+                text="To settle financial differences, " + userB.full_name + " has to pay you " + str(difference) + " units. Do you wish to mark this as done?",
+                reply_markup=telegram.ReplyKeyboardMarkup(confirm_cancel_keyboard))
+        return CONFIRM
+    # A and B are balanced
+    else:
+        context.bot.send_message(chat_id=userA.chat_id,
+                text="You and " + userB.full_name + " are already balanced.",
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        current_settle_dict[userA.tag] = None
+        return ConversationHandler.END
+
+#
+# ececute the settlement if confirm was selected
+#
+def settle_received_confirmation (update, context):
+    if update.message.text == "Confirm":
+        userB = current_settle_dict[update.message.from_user.username]
+        settle_differences(update.message.from_user.username, userB.tag)
+
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="You and " + userB.full_name + " are now balanced.",
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        context.bot.send_message(chat_id=userB.chat_id,
+                text=userA.full_name + " selected to settle all financial differences between both of you.\n"
+                "You and " + userA.full_name + " are now balanced.",
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+
+        return ConversationHandler.END
+    else:
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Cancelling",
+                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        current_settle_dict[userA.tag] = None
+        return ConversationHandler.END
 
 #
 # cancel a previously started expense
 #
 def cancel (update, context):
+    current_expense_dict[update.message.from_user.username] = None
+    current_settle_dict[update.message.from_user.username] = None
     context.bot.send_message(chat_id=update.message.chat_id,
             text="I'll simply forget about it.",
             reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))

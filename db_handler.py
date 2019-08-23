@@ -74,6 +74,20 @@ def get_relative_finance (user_a, user_b):
         finanzministerium.commit()
         return Decimal(0)
 
+def settle_differences (user_a, user_b):
+    if user_a == user_b:
+        return
+
+    if (user_a > user_b):
+        # switch users
+        tmp = user_a
+        user_a = user_b
+        user_b = tmp
+
+    cursor.execute("DELETE FROM relative_finance WHERE user_a=%s AND user_b=%s",
+            (user_a, user_b))
+    finanzministerium.commit()
+
 def add_simple_expense (expense):
     if expense.userA == expense.userB:
         return
