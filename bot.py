@@ -152,7 +152,7 @@ def expense (update, context):
             add_expense(current_expense, update.message.from_user.username)
             users = [get_user(user) for user in current_expense.users]
             users = list(filter(lambda x: x.tag != update.message.from_user.username, users))
-            show_expense_result(get_user(update.message.from_user.username), users)
+            show_expense_result(context, get_user(update.message.from_user.username), users)
             return ConversationHandler.END
 
 #
@@ -275,7 +275,7 @@ def received_share (update, context):
         return ConversationHandler.END
 
     add_expense(current_expense, update.message.from_user.username)
-    show_expense_result(get_user(update.message.from_user.username), users)
+    show_expense_result(context, get_user(update.message.from_user.username), users)
     current_expense_dict[update.message.from_user.username] = None
 
     return ConversationHandler.END
@@ -283,7 +283,7 @@ def received_share (update, context):
 #
 # shows the updated relative finances after entering a new expense
 #
-def show_expense_result (userA, users):
+def show_expense_result (context, userA, users):
     for userB in users:
         difference = get_relative_finance(userA.tag, userB.tag)
         # userA owes userB difference units
