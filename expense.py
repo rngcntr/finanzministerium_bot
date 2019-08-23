@@ -17,7 +17,7 @@ class Expense:
     value = None
 
     def from_text (expense_string):
-        pattern = re.compile(r"""\s*
+        pattern = re.compile(r"""\s*\/expense\s*
                                 (?P<value>\-?\d*\.?\d*) # value
                                 \s+
                                 (?P<user>\@[^\s]*(\s+\@[^\s]*)*)  # accounted user(s)

@@ -131,12 +131,27 @@ def status (update, context):
 # start a new expense
 #
 def expense (update, context):
-    current_expense_dict[update.message.from_user.username] = Expense()
+    if update.message.text.trim() == "/expense":
+        # normal interaction is used
+        current_expense_dict[update.message.from_user.username] = Expense()
 
-    context.bot.send_message(chat_id=update.message.from_user.id,
-            text="Who do you share the expense with?",
-            reply_markup=telegram.ReplyKeyboardRemove())
-    return NAME
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Who do you share the expense with?",
+                reply_markup=telegram.ReplyKeyboardRemove())
+        return NAME
+    else:
+        # quick interaction is used
+        current_expense = Expense.from_text(update.message.text)
+        if not expense:
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text="Please use the following format to enter expenses quickly:\n"
+                    "/expense <value> <user_1> <user_2> ... <user_n> <reason>",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+            return END
+        else:
+            add_expense(current_expense, update.message.from_user.username)
+            show_expense_result(get_user(update.message.from_user.username), users.remove(update.message.from_user.username))
+            return END
 
 #
 # received one (or multiple) users to share the expense with
@@ -258,38 +273,44 @@ def received_share (update, context):
         return ConversationHandler.END
 
     add_expense(current_expense, update.message.from_user.username)
+    show_expense_result(get_user(update.message.from_user.username), users)
+    current_expense_dict[update.message.from_user.username] = None
 
+    return ConversationHandler.END
+
+#
+# shows the updated relative finances after entering a new expense
+#
+def expense_result (userA, users):
     for userB in users:
-        difference = get_relative_finance(update.message.from_user.username, userB.tag)
+        difference = get_relative_finance(userA.tag, userB.tag)
         # userA owes userB difference units
 
         # A owes B
         if difference > 0:
-            context.bot.send_message(chat_id=update.message.from_user.id,
+            context.bot.send_message(chat_id=userA.chat_id,
                     text="You owe " + userB.full_name + " " + str(difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
             context.bot.send_message(chat_id=userB.chat_id,
-                    text=update.message.from_user.full_name + " owes you " + str(difference) + " units.",
+                    text=userA.full_name + " owes you " + str(difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         # B owes A 
         elif difference < 0:
-            context.bot.send_message(chat_id=update.message.from_user.id,
+            context.bot.send_message(chat_id=userA.chat_id,
                     text=userB.full_name + " owes you " + str(-difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
             context.bot.send_message(chat_id=userB.chat_id,
-                    text="You owe " + update.message.from_user.full_name + " " + str(-difference) + " units.",
+                    text="You owe " + userA.full_name + " " + str(-difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         # A and B are balanced
         else:
-            context.bot.send_message(chat_id=update.message.from_user.id,
+            context.bot.send_message(chat_id=userA.chat_id,
                     text="You and " + userB.full_name + " are now balanced.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
             context.bot.send_message(chat_id=userB.chat_id,
-                    text="You and " + update.message.from_user.full_name + " are now balanced.",
+                    text="You and " + userA.full_name + " are now balanced.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
-    current_expense_dict[update.message.from_user.username] = None
-    return ConversationHandler.END
 
 #
 # cancel a previously started expense
