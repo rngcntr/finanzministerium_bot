@@ -260,7 +260,7 @@ def received_share (update, context):
     add_complex_expense(current_expense, update.message.from_user.username)
 
     for userB in users:
-        difference = get_relative_finance(current_expense.userA, current_expense.userB)
+        difference = get_relative_finance(update.message.from_user.username, current_expense.userB)
         # userA owes userB difference units
 
         # A owes B
