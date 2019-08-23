@@ -106,8 +106,7 @@ def start (update, context):
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
 def status (update, context):
-    userA = get_user(update.message.from_user.username)
-    relative_finance_list = get_status(userA.tag)
+    relative_finance_list = get_status(update.message.from_user.username)
 
     # everything is balanced
     if len(relative_finance_list) == 0:
@@ -120,11 +119,11 @@ def status (update, context):
         difference = relative_finance.value
 
         if difference > 0:
-            context.bot.send_message(chat_id=userA.chat_id,
+            context.bot.send_message(chat_id=update.message.from_user.id,
                     text="You owe " + userB.full_name + " (@" + userB.tag + ") " + str(difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         elif difference < 0:
-            context.bot.send_message(chat_id=userA.chat_id,
+            context.bot.send_message(chat_id=update.message.from_user.id,
                     text=userB.full_name + " (@" + userB.tag + ") owes you " + str(-difference) + " units.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
@@ -132,11 +131,9 @@ def status (update, context):
 # start a new expense
 #
 def expense (update, context):
-    userA = get_user(update.message.from_user.username)
-    current_expense_dict[userA.tag] = Expense()
-    current_expense_dict[userA.tag].userA = userA.tag
+    current_expense_dict[update.message.from_user.username] = ComplexExpense()
 
-    context.bot.send_message(chat_id=userA.chat_id,
+    context.bot.send_message(chat_id=update.message.from_user.id,
             text="Who do you share the expense with?",
             reply_markup=telegram.ReplyKeyboardRemove())
     return NAME
@@ -145,55 +142,58 @@ def expense (update, context):
 # received one (or multiple) users to share the expense with
 #
 def received_name (update, context):
-    userA = get_user(update.message.from_user.username)
     entities = update.message.entities
 
     if (len(entities) == 0):
         # no mentions in message
-        context.bot.send_message(chat_id=userA.chat_id,
-                text="You have to send me a username. Cancelling.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        return ConversationHandler.END
-    elif (entities[0].type != "mention"):
-        # message element is not a mention
-        context.bot.send_message(chat_id=userA.chat_id,
+        context.bot.send_message(chat_id=update.message.from_user.id,
                 text="You have to send me a username. Cancelling.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         return ConversationHandler.END
     else:
-        # there is at least one mentioned user
-        userB_string = update.message.parse_entity(entities[0]).replace("@", "")
-        userB = get_user(userB_string)
-        if not userB:
-            # the mentioned user is not registered
-            current_expense_dict[userA.tag] = None
-            context.bot.send_message(chat_id=userA.chat_id,
-                    text="This user is not yet registered. Cancelling.",
+        entities = list(filter(lambda x: x.type == "mention", entities))
+        entities = [update.message.parse_entity(entity).replace("@","") for entity in entities]
+        entities = list(filter(lambda x: x != update.message.from_user.username)) # don't share with yourself
+        if len(entities) == 0:
+            # message element is not a mention
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text="You have to send me at least one registered username who is not you. Cancelling.",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
             return ConversationHandler.END
         else:
-            # the mentioned user is registered
-            current_expense_dict[userA.tag].userB = userB.tag
-            context.bot.send_message(chat_id=userA.chat_id,
-                    text="Sharing an expense with " + userB.full_name + ". How much did you spend? (use xxx.xx for decimal values)",
-                    reply_markup=telegram.ReplyKeyboardRemove())
+            # there is at least one mentioned user
+            users = [get_user(entity) for entity in entities]
+            for userB in users:
+                if not userB:
+                    # the mentioned user is not registered
+                    current_expense_dict[update.message.from_user.username] = None
+                    context.bot.send_message(chat_id=update.message.from_user.id,
+                            text="The user @" + userB.tag + " is not yet registered. Cancelling.",
+                            reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+                    return ConversationHandler.END
+            # all of the mentioned users are registered
+            current_expense_dict[update.message.from_user.username].users = entities
+            if len(users) == 1:
+                context.bot.send_message(chat_id=update.message.from_user.id,
+                        text="Sharing an expense with " + users[0].full_name + ". How much did you spend? (use xxx.xx for decimal values)",
+                        reply_markup=telegram.ReplyKeyboardRemove())
+            else:
+                context.bot.send_message(chat_id=update.message.from_user.id,
+                        text="Sharing an expense multiple users. How much did you spend? (use xxx.xx for decimal values)",
+                        reply_markup=telegram.ReplyKeyboardRemove())
             return VALUE
 
 #
 # received the value of the current expense
 #
 def received_value (update, context):
-    userA = get_user(update.message.from_user.username)
-    current_expense = current_expense_dict[userA.tag]
-    userB = get_user(current_expense.userB)
+    current_expense = current_expense_dict[update.message.from_user.username]
 
     value_input = update.message.text
     value_decimal = Decimal(sub(r'[^\d\-.]', '', value_input))
     current_expense.value = value_decimal
-    context.bot.send_message(chat_id=userA.chat_id,
-            text="Please tell "
-                + userB.full_name
-                + " a reason for this expense.",
+    context.bot.send_message(chat_id=update.message.from_user.id,
+            text="Please provide a reason for this expense.",
             reply_markup=telegram.ReplyKeyboardRemove())
 
     return REASON
@@ -202,20 +202,16 @@ def received_value (update, context):
 # received a reason for the current expense
 #
 def received_reason (update, context):
-    userA = get_user(update.message.from_user.username)
-    current_expense = current_expense_dict[userA.tag]
-    userB = get_user(current_expense.userB)
+    current_expense = current_expense_dict[update.message.from_user.username]
 
     reason_input = update.message.text
     current_expense.reason = reason_input
-    custom_keyboard = [["100%", "50%", "Cancel"]]
+    custom_keyboard = [[str(current_expense.value) + " for everybody", "Share equally (including yourself)", "Share equally (excluding yourself)", "Cancel"]]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
-    context.bot.send_message(chat_id=userA.chat_id,
+    context.bot.send_message(chat_id=update.message.from_user.id,
             text="Adding an expense with value "
                 + str(current_expense.value)
-                + ". How much does "
-                + userB.full_name
-                + " have to pay?",
+                + ". How much does everyone have to pay?",
             reply_markup=reply_markup)
 
     return SHARE
@@ -224,67 +220,75 @@ def received_reason (update, context):
 # received a share of the current expense for userB
 #
 def received_share (update, context):
-    userA = get_user(update.message.from_user.username)
-    current_expense = current_expense_dict[userA.tag]
-    userB = get_user(current_expense.userB)
-    reason = current_expense.reason
-    value = current_expense.value
+    current_expense = current_expense_dict[update.message.from_user.username]
+    users = [get_user(user) for user in current_expense.users]
 
     share = update.message.text
         
-    if share == "100%":
-        context.bot.send_message(chat_id=userA.chat_id,
-                text=userB.full_name + " pays everything.",
+    if share.endswith(" for everybody"):
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Everybody pays " + str(current_expense.value),
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        context.bot.send_message(chat_id=userB.chat_id,
-                text=userA.full_name + " has added an expense of " + str(value) + " units for the following reason:\n\n" + reason,
+        for userB in users:
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value) + " units for the following reason:\n\n" + current_expense.reason,
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        current_expense.value = current_expense.value * len(users)
+    elif share == "Share equally (including yourself)":
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Everybody including you pays " + str(current_expense.value / (len(users) + 1))+ " units.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-    elif share == "50%":
-        value = value / 2
-        current_expense.value = value
-        context.bot.send_message(chat_id=userA.chat_id,
-                text="You share your expense equally with " + userB.full_name + ".",
+        for userB in users:
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / (len(users) + 1)) + " units for the following reason:\n\n" + reason,
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        current_expense.users.append(update.message.from_user.username)
+    elif share == "Share equally (excluding yourself)":
+        context.bot.send_message(chat_id=update.message.from_user.id,
+                text="Everybody but you pays " + str(current_expense.value / len(users))+ " units.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        context.bot.send_message(chat_id=userB.chat_id,
-                text=userA.full_name + " has added an expense of " + str(value) + " units for the following reason:\n\n" + reason,
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        for userB in users:
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / len(users)) + " units for the following reason:\n\n" + reason,
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
     else:
-        context.bot.send_message(chat_id=userA.chat_id,
+        context.bot.send_message(chat_id=update.message.from_user.id,
                 text="I'll simply forget about it.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         return ConversationHandler.END
 
-    add_expense(current_expense)
+    add_complex_expense(current_expense, update.message.from_user.username)
 
-    difference = get_relative_finance(current_expense.userA, current_expense.userB)
-    # userA owes userB difference units
+    for userB in users:
+        difference = get_relative_finance(current_expense.userA, current_expense.userB)
+        # userA owes userB difference units
 
-    # A owes B
-    if difference > 0:
-        context.bot.send_message(chat_id=userA.chat_id,
-                text="You owe " + userB.full_name + " " + str(difference) + " units.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        context.bot.send_message(chat_id=userB.chat_id,
-                text=userA.full_name + " owes you " + str(difference) + " units.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-    # B owes A 
-    elif difference < 0:
-        context.bot.send_message(chat_id=userA.chat_id,
-                text=userB.full_name + " owes you " + str(-difference) + " units.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        context.bot.send_message(chat_id=userB.chat_id,
-                text="You owe " + userA.full_name + " " + str(-difference) + " units.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-    # A and B are balanced
-    else:
-        context.bot.send_message(chat_id=userA.chat_id,
-                text="You and " + userB.full_name + " are now balanced.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-        context.bot.send_message(chat_id=userB.chat_id,
-                text="You and " + userA.full_name + " are now balanced.",
-                reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        # A owes B
+        if difference > 0:
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text="You owe " + userB.full_name + " " + str(difference) + " units.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text=update.message.from_user.full_name + " owes you " + str(difference) + " units.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        # B owes A 
+        elif difference < 0:
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text=userB.full_name + " owes you " + str(-difference) + " units.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text="You owe " + update.message.from_user.full_name + " " + str(-difference) + " units.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+        # A and B are balanced
+        else:
+            context.bot.send_message(chat_id=update.message.from_user.id,
+                    text="You and " + userB.full_name + " are now balanced.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+            context.bot.send_message(chat_id=userB.chat_id,
+                    text="You and " + update.message.from_user.full_name + " are now balanced.",
+                    reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
-    current_expense_dict[userA.tag] = None
+    current_expense_dict[update.message.from_user.username] = None
     return ConversationHandler.END
 
 #
