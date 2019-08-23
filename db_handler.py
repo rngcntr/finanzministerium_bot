@@ -34,7 +34,7 @@ def get_user (tag):
         user = User()
         user.tag = result[0][0].decode()
         user.full_name = result[0][1].decode()
-        user.chat_id = result[0][2]
+        user.chat_id = result[0][2].decode()
         return user
     else:
         return None
@@ -44,7 +44,7 @@ def get_status (user_a):
             "UNION SELECT user_a AS user_b, -value FROM relative_finance WHERE user_b=%s AND NOT value=0",
             (user_a, user_a))
     result = cursor.fetchall();
-    return [RelativeFinance(userB = entry[0].decode(), value=Decimal(entry[1]))  for entry in result]
+    return [RelativeFinance(userB = entry[0].decode(), value=Decimal(entry[1].decode()))  for entry in result]
 
 def get_relative_finance (user_a, user_b):
     if user_a == user_b:
@@ -64,9 +64,9 @@ def get_relative_finance (user_a, user_b):
 
     if len(result) > 0:
         if switched:
-            return Decimal(-1) * Decimal(result[0][0])
+            return Decimal(-1) * Decimal(result[0][0].decode())
         else:
-            return Decimal(result[0][0])
+            return Decimal(result[0][0].decode())
     else:
         # insert new entry
         cursor.execute("INSERT INTO relative_finance (user_a, user_b, value) VALUES (%s, %s, %s)",
