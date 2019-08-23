@@ -74,7 +74,7 @@ def get_relative_finance (user_a, user_b):
         finanzministerium.commit()
         return Decimal(0)
 
-def add_expense (expense):
+def add_simple_expense (expense):
     if expense.userA == expense.userB:
         return
 
@@ -96,6 +96,6 @@ def add_expense (expense):
                 (new_value, expense.userA, expense.userB))
         finanzministerium.commit()
 
-def add_complex_expense (complex_expense, user_a):
-    for expense in complex_expense.to_expense_list(user_a):
-        add_expense (expense)
+def add_expense (expense, user_a):
+    for expense in expense.to_expense_list(user_a):
+        add_simple_expense(expense)

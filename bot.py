@@ -131,7 +131,7 @@ def status (update, context):
 # start a new expense
 #
 def expense (update, context):
-    current_expense_dict[update.message.from_user.username] = ComplexExpense()
+    current_expense_dict[update.message.from_user.username] = Expense()
 
     context.bot.send_message(chat_id=update.message.from_user.id,
             text="Who do you share the expense with?",
@@ -257,7 +257,7 @@ def received_share (update, context):
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         return ConversationHandler.END
 
-    add_complex_expense(current_expense, update.message.from_user.username)
+    add_expense(current_expense, update.message.from_user.username)
 
     for userB in users:
         difference = get_relative_finance(update.message.from_user.username, userB.tag)
