@@ -147,11 +147,11 @@ def expense (update, context):
                     text="Please use the following format to enter expenses quickly:\n"
                     "/expense <value> <user_1> <user_2> ... <user_n> <reason>",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
-            return END
+            return ConversationHandler.END
         else:
             add_expense(current_expense, update.message.from_user.username)
             show_expense_result(get_user(update.message.from_user.username), users.remove(update.message.from_user.username))
-            return END
+            return ConversationHandler.END
 
 #
 # received one (or multiple) users to share the expense with
@@ -281,7 +281,7 @@ def received_share (update, context):
 #
 # shows the updated relative finances after entering a new expense
 #
-def expense_result (userA, users):
+def show_expense_result (userA, users):
     for userB in users:
         difference = get_relative_finance(userA.tag, userB.tag)
         # userA owes userB difference units

@@ -22,7 +22,7 @@ class Expense:
                                 \s+
                                 (?P<user>\@[^\s]*(\s+\@[^\s]*)*)  # accounted user(s)
                                 \s+
-                                (?P<reason>[^\@.]*) # reason
+                                (?P<reason>[^\@.]+) # reason
                                 """, re.VERBOSE)
         match = pattern.match(expense_string)
 
