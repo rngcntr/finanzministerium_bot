@@ -5,8 +5,8 @@ import re
 
 class Expense:
     # expense between two users
-    user_a = None
-    user_b = None
+    userA = None
+    userB = None
     reason = None
     value = None
 
@@ -34,15 +34,15 @@ class ComplexExpense:
 
         return current_complex_expense
 
-    def to_expense_list (self, user_a):
+    def to_expense_list (self, userA):
         expenses = []
-        for user_b in self.users:
+        for userB in self.users:
             # don't add self-expenses
-            if user_b != user_a:
+            if userB != userA:
                 expense = Expense()
                 # set attributes
-                expense.user_a = user_a
-                expense.user_b = user_b
+                expense.userA = userA
+                expense.userB = userB
                 expense.reason = self.reason
                 expense.value = self.value / len(self.users)
                 expenses.append(expense)
@@ -65,10 +65,10 @@ class ComplexExpenseEncoder(JSONEncoder):
 class ExpenseDecoder(JSONDecoder):
     def from_json(json_object):
         input_expense = Expense();
-        if "user_a" in json_object:
-            input_expense.user_a = json_object["user_a"]
-        if "user_b" in json_object:
-            input_expense.user_b = json_object["user_b"]
+        if "userA" in json_object:
+            input_expense.userA = json_object["userA"]
+        if "userB" in json_object:
+            input_expense.userB = json_object["userB"]
         if "reason" in json_object:
             input_expense.reason = json_object["reason"]
         if "value" in json_object:
