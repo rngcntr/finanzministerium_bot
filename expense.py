@@ -26,6 +26,9 @@ class Expense:
                                 """, re.VERBOSE)
         match = pattern.match(expense_string)
 
+        if not match:
+            return None
+
         current_expense = Expense()
         current_expense.value = Decimal(match.group("value"))
         current_expense.users = match.group("user").replace("\s*", " ").split(" ")
