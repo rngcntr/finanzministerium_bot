@@ -23,6 +23,8 @@ def initialize_database ():
     cursor = finanzministerium.cursor(prepared=True)
 
 def check_connection ():
+    global finanzministerium
+    global cursor
     if not finanzministerium.is_connected():
         finanzministerium = mysql.connector.connect(
                 host = dbconfig_dict["host"],
