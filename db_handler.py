@@ -15,19 +15,25 @@ def initialize_database ():
     global cursor
 
     dbconfig_dict = load_dict("dbconfig.json");
-    finanzministerium = mysql.connector.connect(
-            host = dbconfig_dict["host"],
-            user = dbconfig_dict["user"],
-            passwd = dbconfig_dict["passwd"],
-            database = dbconfig_dict["database"])
-    cursor = finanzministerium.cursor(prepared=True)
+    check_connection()
+
+def check_connection ():
+    if not finanzministerium.is_connected():
+        finanzministerium = mysql.connector.connect(
+                host = dbconfig_dict["host"],
+                user = dbconfig_dict["user"],
+                passwd = dbconfig_dict["passwd"],
+                database = dbconfig_dict["database"])
+        cursor = finanzministerium.cursor(prepared=True)
 
 def add_user (tag, full_name, chat_id):
+    check_connection()
     cursor.execute("INSERT INTO users (tag, full_name, chat_id) VALUES (%s, %s, %s);",
             (tag, full_name, str(chat_id)))
     finanzministerium.commit()
 
 def get_user (tag):
+    check_connection()
     cursor.execute("SELECT tag, full_name, chat_id FROM users WHERE tag=%s;", (tag,))
     result = cursor.fetchall()
     if result:
@@ -40,6 +46,7 @@ def get_user (tag):
         return None
 
 def get_status (user_a):
+    check_connection()
     cursor.execute("SELECT user_b, value FROM relative_finance WHERE user_a=%s AND NOT value=0 "
             "UNION SELECT user_a AS user_b, -value FROM relative_finance WHERE user_b=%s AND NOT value=0",
             (user_a, user_a))
@@ -47,6 +54,7 @@ def get_status (user_a):
     return [RelativeFinance(userB = entry[0].decode(), value=Decimal(entry[1].decode()))  for entry in result]
 
 def get_relative_finance (user_a, user_b):
+    check_connection()
     if user_a == user_b:
         return Decimal(0)
 
@@ -75,6 +83,7 @@ def get_relative_finance (user_a, user_b):
         return Decimal(0)
 
 def settle_differences (user_a, user_b):
+    check_connection()
     if user_a == user_b:
         return
 
@@ -89,6 +98,7 @@ def settle_differences (user_a, user_b):
     finanzministerium.commit()
 
 def add_simple_expense (expense):
+    check_connection()
     if expense.userA == expense.userB:
         return
 
@@ -111,5 +121,6 @@ def add_simple_expense (expense):
         finanzministerium.commit()
 
 def add_expense (expense, user_a):
+    check_connection()
     for expense in expense.to_expense_list(user_a):
         add_simple_expense(expense)
