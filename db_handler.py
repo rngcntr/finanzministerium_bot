@@ -15,7 +15,12 @@ def initialize_database ():
     global cursor
 
     dbconfig_dict = load_dict("dbconfig.json");
-    check_connection()
+    finanzministerium = mysql.connector.connect(
+            host = dbconfig_dict["host"],
+            user = dbconfig_dict["user"],
+            passwd = dbconfig_dict["passwd"],
+            database = dbconfig_dict["database"])
+    cursor = finanzministerium.cursor(prepared=True)
 
 def check_connection ():
     if not finanzministerium.is_connected():
