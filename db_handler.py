@@ -39,6 +39,17 @@ def add_user (tag, full_name, chat_id):
             (tag, full_name, str(chat_id)))
     finanzministerium.commit()
 
+def register_message (message_type):
+    check_connection()
+    cursor.execute("INSERT INTO messages (type) VALUES (%s);",
+            (message_type,))
+    finanzministerium.commit()
+
+def register_expense ():
+    check_connection()
+    cursor.execute("INSERT INTO expenses VALUES ();")
+    finanzministerium.commit()
+
 def get_user (tag):
     check_connection()
     cursor.execute("SELECT tag, full_name, chat_id FROM users WHERE tag=%s;", (tag,))

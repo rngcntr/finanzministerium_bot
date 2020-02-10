@@ -9,7 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHa
 from decimal import Decimal
 from re import sub
 
-NAME, VALUE, REASON, SHARE, CONFIRM = range(5)
+EXPENSE_NAME, SETTLE_NAME, VALUE, REASON, SHARE, CONFIRM = range(6)
 
 current_expense_dict = {}
 current_settle_dict = {}
@@ -31,55 +31,48 @@ def main ():
 
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    # Add handler for /start command
-    start_handler = CommandHandler("start", start)
-    dispatcher.add_handler(start_handler)
+
+    # Add handlers for /expense and /settle command
+    conversation_handler = ConversationHandler(
+            entry_points=[
+                CommandHandler('expense', expense),
+                CommandHandler('settle', settle),
+                ],
+            states={
+                EXPENSE_NAME: [
+                    MessageHandler(Filters.all, expense_received_name, pass_user_data=True),
+                    ],
+                VALUE: [
+                    MessageHandler(Filters.all, expense_received_value, pass_user_data=True),
+                    ],
+                REASON: [
+                    MessageHandler(Filters.all, expense_received_reason, pass_user_data=True),
+                    ],
+                SHARE: [
+                    MessageHandler(Filters.all, expense_received_share, pass_user_data=True),
+                    ],
+                SETTLE_NAME: [
+                    MessageHandler(Filters.all, settle_received_name, pass_user_data=True),
+                    ],
+                CONFIRM: [
+                    MessageHandler(Filters.all, settle_received_confirmation, pass_user_data=True),
+                    ],
+                },
+            fallbacks=[MessageHandler(Filters.all, cancel)]
+            )
+    dispatcher.add_handler(conversation_handler)
 
     # Add handler for /status command
     status_handler = CommandHandler("status", status)
     dispatcher.add_handler(status_handler)
 
-    # Add handler for /expense command
-    expense_handler = ConversationHandler(
-            entry_points=[CommandHandler('expense', expense)],
-            states={
-                NAME: [MessageHandler(Filters.text,
-                    expense_received_name,
-                    pass_user_data=True),
-                    ],
-                VALUE: [MessageHandler(Filters.text,
-                    expense_received_value,
-                    pass_user_data=True),
-                    ],
-                REASON: [MessageHandler(Filters.text,
-                    expense_received_reason,
-                    pass_user_data=True),
-                    ],
-                SHARE: [MessageHandler(Filters.text,
-                    expense_received_share,
-                    pass_user_data=True),
-                    ],
-                },
-            fallbacks=[CommandHandler("cancel", cancel)]
-            )
-    dispatcher.add_handler(expense_handler)
+    # Add handler for /start command
+    start_handler = CommandHandler("start", start)
+    dispatcher.add_handler(start_handler)
 
-    # Add handler for /settle command
-    settle_handler = ConversationHandler(
-            entry_points=[CommandHandler('settle', settle)],
-            states={
-                NAME: [MessageHandler(Filters.text,
-                    settle_received_name,
-                    pass_user_data=True),
-                    ],
-                CONFIRM: [MessageHandler(Filters.text,
-                    settle_received_confirmation,
-                    pass_user_data=True),
-                    ],
-                },
-            fallbacks=[CommandHandler("cancel", cancel)]
-            )
-    dispatcher.add_handler(settle_handler)
+    # Catch all other messages
+    failure_handler = MessageHandler(Filters.all, failure)
+    dispatcher.add_handler(failure_handler)
 
     # Start the bot
     updater.start_polling()
@@ -115,12 +108,16 @@ def start (update, context):
                 update.message.from_user.full_name,
                 update.message.from_user.id)
 
+        register_message("start")
+
         # notify the user
         context.bot.send_message(chat_id=update.message.chat_id,
                 text="Bleep blop, I'm a bot.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
 
 def status (update, context):
+    register_message("status")
+
     relative_finance_list = get_status(update.message.from_user.username)
 
     # everything is balanced
@@ -146,6 +143,8 @@ def status (update, context):
 # start a new expense
 #
 def expense (update, context):
+    register_message("expense")
+
     if update.message.text.strip() == "/expense":
         # normal interaction is used
         current_expense_dict[update.message.from_user.username] = Expense()
@@ -153,7 +152,7 @@ def expense (update, context):
         context.bot.send_message(chat_id=update.message.from_user.id,
                 text="Who do you share the expense with?",
                 reply_markup=telegram.ReplyKeyboardRemove())
-        return NAME
+        return EXPENSE_NAME
     else:
         # quick interaction is used
         current_expense = Expense.from_text(update.message.text)
@@ -167,6 +166,10 @@ def expense (update, context):
             add_expense(current_expense, update.message.from_user.username)
             users = [get_user(user) for user in current_expense.users]
             users = list(filter(lambda x: x.tag != update.message.from_user.username, users))
+            for userB in users:
+                context.bot.send_message(chat_id=userB.chat_id,
+                        text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value / len(current_expense.users)) + " units for the following reason:\n\n" + current_expense.reason,
+                        reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
             show_expense_result(context, get_user(update.message.from_user.username), users)
             return ConversationHandler.END
 
@@ -174,6 +177,7 @@ def expense (update, context):
 # received one (or multiple) users to share the expense with
 #
 def expense_received_name (update, context):
+    register_message("expense_received_name")
     entities = update.message.entities
 
     if (len(entities) == 0):
@@ -211,7 +215,7 @@ def expense_received_name (update, context):
                         reply_markup=telegram.ReplyKeyboardRemove())
             else:
                 context.bot.send_message(chat_id=update.message.from_user.id,
-                        text="Sharing an expense multiple users. How much did you spend? (use xxx.xx for decimal values)",
+                        text="Sharing an expense with multiple users. How much did you spend? (use xxx.xx for decimal values)",
                         reply_markup=telegram.ReplyKeyboardRemove())
             return VALUE
 
@@ -219,6 +223,7 @@ def expense_received_name (update, context):
 # received the value of the current expense
 #
 def expense_received_value (update, context):
+    register_message("expense_received_value")
     current_expense = current_expense_dict[update.message.from_user.username]
 
     value_input = update.message.text
@@ -234,11 +239,22 @@ def expense_received_value (update, context):
 # received a reason for the current expense
 #
 def expense_received_reason (update, context):
+    register_message("expense_received_reason")
     current_expense = current_expense_dict[update.message.from_user.username]
 
     reason_input = update.message.text
     current_expense.reason = reason_input
-    custom_keyboard = [[str(current_expense.value) + " for everybody"], ["Share equally (including yourself)"], ["Share equally (excluding yourself)"], ["Cancel"]]
+    if len(current_expense.users) == 1:
+        custom_keyboard = [
+                [str(current_expense.value) + " for " + get_user(current_expense.users[0]).full_name],
+                ["Share equally"],
+                ["Cancel"]]
+    else:
+        custom_keyboard = [
+                [str(current_expense.value) + " for everybody"],
+                ["Share equally (including yourself)"],
+                ["Share equally (excluding yourself)"],
+                ["Cancel"]]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
     context.bot.send_message(chat_id=update.message.from_user.id,
             text="Adding an expense with value "
@@ -252,12 +268,13 @@ def expense_received_reason (update, context):
 # received a share of the current expense for userB
 #
 def expense_received_share (update, context):
+    register_message("expense_received_share")
     current_expense = current_expense_dict[update.message.from_user.username]
     users = [get_user(user) for user in current_expense.users]
 
     share = update.message.text
         
-    if share.endswith(" for everybody"):
+    if share.find(" for ") >= 0:
         context.bot.send_message(chat_id=update.message.from_user.id,
                 text="Everybody pays " + str(current_expense.value),
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
@@ -266,7 +283,7 @@ def expense_received_share (update, context):
                     text=update.message.from_user.full_name + " has added an expense of " + str(current_expense.value) + " units for the following reason:\n\n" + current_expense.reason,
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         current_expense.value = current_expense.value * len(users)
-    elif share == "Share equally (including yourself)":
+    elif share == "Share equally (including yourself)" or share == "Share equally":
         context.bot.send_message(chat_id=update.message.from_user.id,
                 text="Everybody including you pays " + str(current_expense.value / (len(users) + 1))+ " units.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
@@ -299,6 +316,7 @@ def expense_received_share (update, context):
 # shows the updated relative finances after entering a new expense
 #
 def show_expense_result (context, userA, users):
+    register_expense()
     for userB in users:
         difference = get_relative_finance(userA.tag, userB.tag)
         # userA owes userB difference units
@@ -332,18 +350,19 @@ def show_expense_result (context, userA, users):
 # settle financial differences between users
 #
 def settle (update, context):
+    register_message("settle")
     if update.message.text.strip() == "/settle":
         # normal interaction is used
-        context.bot.send_message(chat_id=update.message.from_user.id,
+        context.bot.send_message(chat_id=update.message.chat_id,
                 text="Who do you want to settle financial differences with?",
                 reply_markup=telegram.ReplyKeyboardRemove())
-        return NAME
+        return SETTLE_NAME
     else:
         # quick interaction is used
         userB_string = update.message.text.strip().replace("/settle @", "")
         userB = get_user(userB_string)
         if not userB or userB.tag == update.message.from_user.username:
-            context.bot.send_message(chat_id=update.message.from_user.id,
+            context.bot.send_message(chat_id=update.message.chat_id,
                     text="Please use the following format and enter a registered user who is not you:\n"
                     "/settle <user>",
                     reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
@@ -355,10 +374,11 @@ def settle (update, context):
 # received a user account to settle financial differences with
 #
 def settle_received_name (update, context):
+    register_message("settle_received_name")
     userB_string = update.message.text.strip().replace("@", "")
     userB = get_user(userB_string)
     if not userB or userB.tag == update.message.from_user.username:
-        context.bot.send_message(chat_id=update.message.from_user.id,
+        context.bot.send_message(chat_id=update.message.chat_id,
                 text="You have to enter a registered user who is not you. Cancelling.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         return ConversationHandler.END
@@ -396,11 +416,12 @@ def settle_ask_for_confirmation (context, userA, userB):
 # ececute the settlement if confirm was selected
 #
 def settle_received_confirmation (update, context):
+    register_message("settle_received_confirmation")
     if update.message.text == "Confirm":
         userB = current_settle_dict[update.message.from_user.username]
         settle_differences(update.message.from_user.username, userB.tag)
 
-        context.bot.send_message(chat_id=update.message.from_user.id,
+        context.bot.send_message(chat_id=update.message.chat_id,
                 text="You and " + userB.full_name + " are now balanced.",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         context.bot.send_message(chat_id=userB.chat_id,
@@ -410,7 +431,7 @@ def settle_received_confirmation (update, context):
 
         return ConversationHandler.END
     else:
-        context.bot.send_message(chat_id=update.message.from_user.id,
+        context.bot.send_message(chat_id=update.message.chat_id,
                 text="Cancelling",
                 reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
         current_settle_dict[update.message.from_user.username] = None
@@ -420,16 +441,19 @@ def settle_received_confirmation (update, context):
 # cancel a previously started expense
 #
 def cancel (update, context):
+    register_message("cancel")
     current_expense_dict[update.message.from_user.username] = None
     current_settle_dict[update.message.from_user.username] = None
     context.bot.send_message(chat_id=update.message.chat_id,
             text="I'll simply forget about it.",
             reply_markup=telegram.ReplyKeyboardMarkup(command_keyboard))
+    return ConversationHandler.END;
 
 #
 # send failure message for non control commands
 #
 def failure (update, context):
+    register_message("failure")
     context.bot.send_message(chat_id=update.message.chat_id,
             text="I don't understand human language.\n<i>(at least I pretend...)</i>",
             parse_mode=telegram.ParseMode.HTML,
